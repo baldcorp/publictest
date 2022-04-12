@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "3849956612422599996"
+      "templateHash": "3655375943119270209"
     }
   },
   "parameters": {
@@ -216,7 +216,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "13047955289023007009"
+              "templateHash": "14224681383438316608"
             }
           },
           "parameters": {
@@ -370,7 +370,7 @@
                 "azPowerShellVersion": "6.4",
                 "cleanupPreference": "OnSuccess",
                 "retentionInterval": "PT4H",
-                "scriptContent": "      param(\r\n        [string] $resourceGroup,\r\n        [string] $vmName\r\n      )\r\n      Connect-AzAccount -Identity\r\n       \r\n      $remoteCommands =\r\n      @'\r\n      #!/bin/sh\r\n      sudo sed -i \"s/\\(MONITOR_INTERFACES=\\)\\(.*\\)/\\1\\\"local_listener\\\"/g\" /opt/sensor/active/etc/network\r\n      sudo sed -i \"s/\\(MGMT_INTERFACE=\\)\\(.*\\)/\\1\\\"eth0\\\"/g\" /opt/sensor/active/etc/network\r\n      ipaddr=$(ip addr show eth0 | grep \"inet\\b\" | awk '{print $2}' | cut -d/ -f1)\r\n      sudo sed -i \"s/\\(MGMT_IP_ADDRESS=\\)\\(.*\\)/\\1\\\"$ipaddr\\\"/g\" /opt/sensor/active/etc/network\r\n      sudo sed -i \"s/\\(ERSPAN_INTERFACES=\\)\\(.*\\)/\\1\\\"\\\"/g\" /opt/sensor/active/etc/network\r\n      netmask=$(ifconfig eth0 | awk '/netmask/{split($4,a,\":\"); print a[1]}')\r\n      sudo sed -i \"s/\\(MGMT_SUBNET=\\)\\(.*\\)/\\1\\\"$netmask\\\"/g\" /opt/sensor/active/etc/network\r\n      gateway=$(route -n | awk '{print $2}' | head -3 | tail -1)\r\n      sudo sed -i \"s/\\(MGMT_GATEWAY=\\)\\(.*\\)/\\1\\\"$gateway\\\"/g\" /opt/sensor/active/etc/network\r\n      dnsip=$(systemd-resolve --status | grep -i \"DNS Servers\" | awk '{print $3}')\r\n      sudo sed -i \"s/\\(MGMT_DNS=\\)\\(.*\\)/\\1\\\"$dnsip\\\"/g\" /opt/sensor/active/etc/network\r\n      sudo sed -i \"s/\\(SENSOR_HOSTNAME=\\)\\(.*\\)/\\1\\\"sensortest\\\"/g\" /opt/sensor/active/etc/network\r\n      sudo sed -i \"s/\\(IS_DEBUG=\\)\\(.*\\)/\\1\\\"False\\\"/g\" /opt/sensor/active/etc/network\r\n      sudo sed -i \"s/\\(RUN_PROXY=\\)\\(.*\\)/\\1\\\"false\\\"/g\" /opt/sensor/active/etc/network\r\n      cd /opt/sensor/active/\r\n      sudo /opt/sensor/active/compose/shutdown.sh\r\n      sudo /opt/sensor/active/compose/startup.sh\r\n      '@\r\n\r\n      Set-Content -Path .\\post_deploy.sh -Value $remoteCommands -Force\r\n\r\n      Invoke-AzVMRunCommand -ResourceGroupName \"$resourceGroup\" -Name \"$vmName\" -CommandId 'RunShellScript' -ScriptPath .\\post_deploy.sh\r\n    "
+                "scriptContent": "      param(\r\n        [string] $resourceGroup,\r\n        [string] $vmName\r\n      )\r\n      Connect-AzAccount -Identity\r\n       \r\n      $remoteCommands = \r\n@'\r\n#!/bin/sh\r\nsudo sed -i \"s/\\(MONITOR_INTERFACES=\\)\\(.*\\)/\\1\\\"local_listener\\\"/g\" /opt/sensor/active/etc/network\r\nsudo sed -i \"s/\\(MGMT_INTERFACE=\\)\\(.*\\)/\\1\\\"eth0\\\"/g\" /opt/sensor/active/etc/network\r\nipaddr=$(ip addr show eth0 | grep \"inet\\b\" | awk '{print $2}' | cut -d/ -f1)\r\nsudo sed -i \"s/\\(MGMT_IP_ADDRESS=\\)\\(.*\\)/\\1\\\"$ipaddr\\\"/g\" /opt/sensor/active/etc/network\r\nsudo sed -i \"s/\\(ERSPAN_INTERFACES=\\)\\(.*\\)/\\1\\\"\\\"/g\" /opt/sensor/active/etc/network\r\nnetmask=$(ifconfig eth0 | awk '/netmask/{split($4,a,\":\"); print a[1]}')\r\nsudo sed -i \"s/\\(MGMT_SUBNET=\\)\\(.*\\)/\\1\\\"$netmask\\\"/g\" /opt/sensor/active/etc/network\r\ngateway=$(route -n | awk '{print $2}' | head -3 | tail -1)\r\nsudo sed -i \"s/\\(MGMT_GATEWAY=\\)\\(.*\\)/\\1\\\"$gateway\\\"/g\" /opt/sensor/active/etc/network\r\ndnsip=$(systemd-resolve --status | grep -i \"DNS Servers\" | awk '{print $3}')\r\nsudo sed -i \"s/\\(MGMT_DNS=\\)\\(.*\\)/\\1\\\"$dnsip\\\"/g\" /opt/sensor/active/etc/network\r\nsudo sed -i \"s/\\(SENSOR_HOSTNAME=\\)\\(.*\\)/\\1\\\"sensortest\\\"/g\" /opt/sensor/active/etc/network\r\nsudo sed -i \"s/\\(IS_DEBUG=\\)\\(.*\\)/\\1\\\"False\\\"/g\" /opt/sensor/active/etc/network\r\nsudo sed -i \"s/\\(RUN_PROXY=\\)\\(.*\\)/\\1\\\"false\\\"/g\" /opt/sensor/active/etc/network\r\ncd /opt/sensor/active/\r\nsudo /opt/sensor/active/compose/shutdown.sh\r\nsudo /opt/sensor/active/compose/startup.sh\r\n'@\r\n\r\n      Set-Content -Path .\\post_deploy.sh -Value $remoteCommands -Force\r\n\r\n      Invoke-AzVMRunCommand -ResourceGroupName \"$resourceGroup\" -Name \"$vmName\" -CommandId 'RunShellScript' -ScriptPath .\\post_deploy.sh\r\n    "
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Compute/virtualMachines', variables('vmname'))]"
