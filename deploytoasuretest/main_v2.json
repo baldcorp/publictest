@@ -300,10 +300,11 @@
                   "osDisk": {
                     "createOption": "Attach",
                     "name": "[format('{0}-osdisk', variables('vmname'))]",
-                    "osType": "Windows",
+                    "osType": "Linux",
                     "vhd": {
                       "uri": "[format('{0}vhds/{1}', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('storageAccountRG')), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-08-01').primaryEndpoints.blob, parameters('vhdname'))]"
-                    }
+                    },
+                    "diskSizeGB": 512
                   }
                 },
                 "networkProfile": {
