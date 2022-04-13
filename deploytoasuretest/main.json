@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "2491644632070732296"
+      "templateHash": "5146372914860246444"
     }
   },
   "parameters": {
@@ -22,7 +22,7 @@
     },
     "date": {
       "type": "string",
-      "defaultValue": "[utcNow('dd-mm-yyyy:hh:mm')]"
+      "defaultValue": "[utcNow('dd-mm-yyyy_hh-mm')]"
     }
   },
   "resources": [
