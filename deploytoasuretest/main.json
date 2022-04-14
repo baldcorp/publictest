@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "7587520271548500660"
+      "templateHash": "8821915341665464065"
     }
   },
   "parameters": {
@@ -218,7 +218,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "14171874152142062888"
+              "templateHash": "6902858219150028544"
             }
           },
           "parameters": {
@@ -254,6 +254,10 @@
           },
           "variables": {
             "pipname": "[format('{0}vm{1}{2}-pip', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
+            "nsgname": "[format('{0}NSG{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
+            "nsgidObject": {
+              "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgname'))]"
+            },
             "vmNICname": "[format('{0}vm{1}{2}-nic01', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
             "pipProperties": {
               "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('pipname'))]",
@@ -264,6 +268,43 @@
             "vmname": "[format('{0}vm{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]"
           },
           "resources": [
+            {
+              "condition": "[parameters('deployPublicIP')]",
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2021-05-01",
+              "name": "[variables('pipname')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "publicIPAllocationMethod": "Static"
+              },
+              "sku": {
+                "name": "Standard"
+              }
+            },
+            {
+              "condition": "[parameters('deployPublicIP')]",
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2021-05-01",
+              "name": "[variables('nsgname')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "Allow_443_port",
+                    "properties": {
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "443",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "VirtualNetwork",
+                      "access": "Allow",
+                      "priority": 100,
+                      "direction": "Inbound"
+                    }
+                  }
+                ]
+              }
+            },
             {
               "type": "Microsoft.Network/virtualNetworks",
               "apiVersion": "2021-05-01",
@@ -280,24 +321,15 @@
                   {
                     "name": "default",
                     "properties": {
-                      "addressPrefix": "10.10.10.0/24"
+                      "addressPrefix": "10.10.10.0/24",
+                      "networkSecurityGroup": "[if(parameters('deployPublicIP'), variables('nsgidObject'), json('null'))]"
                     }
                   }
                 ]
-              }
-            },
-            {
-              "condition": "[parameters('deployPublicIP')]",
-              "type": "Microsoft.Network/publicIPAddresses",
-              "apiVersion": "2021-05-01",
-              "name": "[variables('pipname')]",
-              "location": "[parameters('location')]",
-              "properties": {
-                "publicIPAllocationMethod": "Static"
               },
-              "sku": {
-                "name": "Standard"
-              }
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgname'))]"
+              ]
             },
             {
               "type": "Microsoft.Network/networkInterfaces",
@@ -326,7 +358,7 @@
             {
               "type": "Microsoft.Compute/disks",
               "apiVersion": "2021-12-01",
-              "name": "[format('sensorOS-{0}', uniqueString(resourceGroup().id))]",
+              "name": "[format('{0}sensorOS-{1}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id))]",
               "location": "[parameters('location')]",
               "sku": {
                 "name": "[parameters('diskSKU')]"
@@ -357,7 +389,7 @@
                     "createOption": "Attach",
                     "osType": "Linux",
                     "managedDisk": {
-                      "id": "[resourceId('Microsoft.Compute/disks', format('sensorOS-{0}', uniqueString(resourceGroup().id)))]"
+                      "id": "[resourceId('Microsoft.Compute/disks', format('{0}sensorOS-{1}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id)))]"
                     },
                     "deleteOption": "Delete"
                   }
@@ -377,7 +409,7 @@
                 }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Compute/disks', format('sensorOS-{0}', uniqueString(resourceGroup().id)))]",
+                "[resourceId('Microsoft.Compute/disks', format('{0}sensorOS-{1}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id)))]",
                 "[resourceId('Microsoft.Network/networkInterfaces', variables('vmNICname'))]"
               ]
             }
