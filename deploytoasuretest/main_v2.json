@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "7987653375519162760"
+      "templateHash": "945381978723609318"
     }
   },
   "parameters": {
@@ -435,7 +435,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "17104864665445642561"
+              "templateHash": "17460483991552605930"
             }
           },
           "parameters": {
@@ -458,7 +458,6 @@
               "location": "[parameters('location')]",
               "properties": {
                 "autoUpgradeMinorVersion": true,
-                "enableAutomaticUpgrade": true,
                 "publisher": "Microsoft.Azure.Extensions",
                 "type": "CustomScript",
                 "typeHandlerVersion": "2.1",
