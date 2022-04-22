@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "6393696338124475013"
+      "templateHash": "80927850466498656"
     }
   },
   "parameters": {
@@ -204,13 +204,21 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "7514216265596991824"
+              "templateHash": "1320050952318056724"
             }
           },
           "parameters": {
             "location": {
               "type": "string",
               "defaultValue": "[resourceGroup().location]"
+            },
+            "adminusername": {
+              "type": "string",
+              "defaultValue": "Azuresupersu"
+            },
+            "adminpass": {
+              "type": "secureString",
+              "defaultValue": "[newGuid()]"
             },
             "storageAccountName": {
               "type": "string"
@@ -235,6 +243,7 @@
             }
           },
           "variables": {
+            "imagename": "[format('{0}vm{1}{2}-image', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
             "pipname": "[format('{0}vm{1}{2}-pip', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
             "nsgname": "[format('{0}NSG{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
             "nsgidObject": {
@@ -250,6 +259,26 @@
             "vmname": "[format('{0}vm{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]"
           },
           "resources": [
+            {
+              "type": "Microsoft.Compute/images",
+              "apiVersion": "2021-11-01",
+              "name": "[variables('imagename')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "hyperVGeneration": "V1",
+                "storageProfile": {
+                  "dataDisks": [],
+                  "osDisk": {
+                    "blobUri": "[format('{0}vhds/testvm.vhd', reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-08-01').primaryEndpoints.blob)]",
+                    "diskSizeGB": 128,
+                    "osType": "Linux",
+                    "osState": "Generalized",
+                    "storageAccountType": "[parameters('diskSKU')]"
+                  },
+                  "zoneResilient": false
+                }
+              }
+            },
             {
               "condition": "[parameters('deployPublicIP')]",
               "type": "Microsoft.Network/publicIPAddresses",
@@ -338,26 +367,6 @@
               ]
             },
             {
-              "type": "Microsoft.Compute/disks",
-              "apiVersion": "2021-12-01",
-              "name": "[format('{0}sensorOS-{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
-              "location": "[parameters('location')]",
-              "sku": {
-                "name": "[parameters('diskSKU')]"
-              },
-              "properties": {
-                "creationData": {
-                  "createOption": "Import",
-                  "sourceUri": "[format('{0}vhds/testvm.vhd', reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-08-01').primaryEndpoints.blob)]",
-                  "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-                },
-                "diskSizeGB": 128,
-                "hyperVGeneration": "V1",
-                "networkAccessPolicy": "AllowAll",
-                "osType": "Linux"
-              }
-            },
-            {
               "type": "Microsoft.Compute/virtualMachines",
               "apiVersion": "2021-03-01",
               "name": "[variables('vmname')]",
@@ -368,12 +377,14 @@
                 },
                 "storageProfile": {
                   "osDisk": {
-                    "createOption": "Attach",
-                    "osType": "Linux",
+                    "createOption": "FromImage",
                     "managedDisk": {
-                      "id": "[resourceId('Microsoft.Compute/disks', format('{0}sensorOS-{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix')))]"
+                      "storageAccountType": "[parameters('diskSKU')]"
                     },
                     "deleteOption": "Delete"
+                  },
+                  "imageReference": {
+                    "id": "[resourceId('Microsoft.Compute/images', variables('imagename'))]"
                   }
                 },
                 "networkProfile": {
@@ -383,6 +394,17 @@
                     }
                   ]
                 },
+                "osProfile": {
+                  "computerName": "Sensor",
+                  "customData": "[base64('#!/bin/sh sudo sed -i \"s/\\(MONITOR_INTERFACES=\\)\\(.*\\)/\\1\\\"local_listener\\\"/g\" /opt/sensor/active/etc/network && sudo sed -i \"s/\\(MGMT_INTERFACE=\\)\\(.*\\)/\\1\\\"eth0\\\"/g\" /opt/sensor/active/etc/network && ipaddr=$(ip addr show eth0 | grep \"inet\\b\" | awk ''{print $2}'' | cut -d/ -f1) && sudo sed -i \"s/\\(MGMT_IP_ADDRESS=\\)\\(.*\\)/\\1\\\"$ipaddr\\\"/g\" /opt/sensor/active/etc/network && sudo sed -i \"s/\\(ERSPAN_INTERFACES=\\)\\(.*\\)/\\1\\\"\\\"/g\" /opt/sensor/active/etc/network && netmask=$(ifconfig eth0 | awk ''/netmask/{split($4,a,\":\"); print a[1]}'') && sudo sed -i \"s/\\(MGMT_SUBNET=\\)\\(.*\\)/\\1\\\"$netmask\\\"/g\" /opt/sensor/active/etc/network && gateway=$(route -n | awk ''{print $2}'' | head -3 | tail -1) && sudo sed -i \"s/\\(MGMT_GATEWAY=\\)\\(.*\\)/\\1\\\"$gateway\\\"/g\" /opt/sensor/active/etc/network && dnsip=$(systemd-resolve --status | grep -i \"DNS Servers\" | awk ''{print $3}'') && sudo sed -i \"s/\\(MGMT_DNS=\\)\\(.*\\)/\\1\\\"$dnsip\\\"/g\" /opt/sensor/active/etc/network && sudo sed -i \"s/\\(SENSOR_HOSTNAME=\\)\\(.*\\)/\\1\\\"sensortest\\\"/g\" /opt/sensor/active/etc/network && sudo sed -i \"s/\\(IS_DEBUG=\\)\\(.*\\)/\\1\\\"False\\\"/g\" /opt/sensor/active/etc/network && sudo sed -i \"s/\\(RUN_PROXY=\\)\\(.*\\)/\\1\\\"false\\\"/g\" /opt/sensor/active/etc/network && cd /opt/sensor/active/ && sudo /opt/sensor/active/compose/shutdown.sh && sudo /opt/sensor/active/compose/startup.sh')]",
+                  "adminUsername": "[parameters('adminusername')]",
+                  "adminPassword": "[parameters('adminpass')]",
+                  "linuxConfiguration": {
+                    "patchSettings": {
+                      "patchMode": "ImageDefault"
+                    }
+                  }
+                },
                 "diagnosticsProfile": {
                   "bootDiagnostics": {
                     "enabled": true,
@@ -391,7 +413,7 @@
                 }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Compute/disks', format('{0}sensorOS-{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix')))]",
+                "[resourceId('Microsoft.Compute/images', variables('imagename'))]",
                 "[resourceId('Microsoft.Network/networkInterfaces', variables('vmNICname'))]"
               ]
             }
