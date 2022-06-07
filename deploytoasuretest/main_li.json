@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "4555306239090698508"
+      "templateHash": "3760791416733617088"
     }
   },
   "parameters": {
@@ -296,7 +296,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "17565730782839795547"
+              "templateHash": "12520201469068166194"
             }
           },
           "parameters": {
@@ -351,7 +351,63 @@
                 "publisher": "Microsoft"
               }
             }
-          ]
+          ],
+          "outputs": {
+            "newLAWid": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[equals(parameters('newOrExistingLA'), 'existing')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-10-01",
+      "name": "lawexist",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "workspaceRG": {
+            "value": "[parameters('ExistingLAWResourceGroup')]"
+          },
+          "workspaceName": {
+            "value": "[parameters('workspaceName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.5.6.12127",
+              "templateHash": "15982553357079645261"
+            }
+          },
+          "parameters": {
+            "workspaceName": {
+              "type": "string"
+            },
+            "workspaceRG": {
+              "type": "string"
+            }
+          },
+          "resources": [],
+          "outputs": {
+            "LAWlocation": {
+              "type": "string",
+              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('workspaceRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2020-10-01', 'full').location]"
+            },
+            "existingLAWid": {
+              "type": "string",
+              "value": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('workspaceRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+            }
+          }
         }
       }
     },
@@ -567,7 +623,9 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'deployAA')]"
+        "[resourceId('Microsoft.Resources/deployments', 'deployAA')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deployLAW')]",
+        "[resourceId('Microsoft.Resources/deployments', 'lawexist')]"
       ]
     },
     {
@@ -665,7 +723,9 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'deployAA')]",
-        "[resourceId('Microsoft.Resources/deployments', 'DeployfuncAPP')]"
+        "[resourceId('Microsoft.Resources/deployments', 'DeployfuncAPP')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deployLAW')]",
+        "[resourceId('Microsoft.Resources/deployments', 'lawexist')]"
       ]
     },
     {
@@ -679,7 +739,7 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('LAWRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2020-10-01', 'full').location]"
+            "value": "[if(equals(parameters('newOrExistingLA'), 'new'), parameters('location'), reference(resourceId('Microsoft.Resources/deployments', 'lawexist'), '2020-10-01').outputs.LAWlocation.value)]"
           },
           "dataCollectionEndpointName": {
             "value": "[parameters('dataCollectionEndpointName')]"
@@ -723,7 +783,11 @@
             }
           }
         }
-      }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'deployLAW')]",
+        "[resourceId('Microsoft.Resources/deployments', 'lawexist')]"
+      ]
     },
     {
       "type": "Microsoft.Resources/deployments",
@@ -736,13 +800,13 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('LAWRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2020-10-01', 'full').location]"
+            "value": "[if(equals(parameters('newOrExistingLA'), 'new'), parameters('location'), reference(resourceId('Microsoft.Resources/deployments', 'lawexist'), '2020-10-01').outputs.LAWlocation.value)]"
           },
           "dataCollectionRuleName": {
             "value": "CommonSecurityLog"
           },
           "workspaceResourceId": {
-            "value": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('LAWRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+            "value": "[if(equals(parameters('newOrExistingLA'), 'new'), reference(resourceId('Microsoft.Resources/deployments', 'deployLAW'), '2020-10-01').outputs.newLAWid.value, reference(resourceId('Microsoft.Resources/deployments', 'lawexist'), '2020-10-01').outputs.existingLAWid.value)]"
           },
           "endpointResourceName": {
             "value": "[parameters('dataCollectionEndpointName')]"
@@ -1424,7 +1488,9 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'deployDCE')]"
+        "[resourceId('Microsoft.Resources/deployments', 'deployDCE')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deployLAW')]",
+        "[resourceId('Microsoft.Resources/deployments', 'lawexist')]"
       ]
     },
     {
@@ -1438,13 +1504,13 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('LAWRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2020-10-01', 'full').location]"
+            "value": "[if(equals(parameters('newOrExistingLA'), 'new'), parameters('location'), reference(resourceId('Microsoft.Resources/deployments', 'lawexist'), '2020-10-01').outputs.LAWlocation.value)]"
           },
           "dataCollectionRuleName": {
             "value": "Syslog"
           },
           "workspaceResourceId": {
-            "value": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('LAWRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+            "value": "[if(equals(parameters('newOrExistingLA'), 'new'), reference(resourceId('Microsoft.Resources/deployments', 'deployLAW'), '2020-10-01').outputs.newLAWid.value, reference(resourceId('Microsoft.Resources/deployments', 'lawexist'), '2020-10-01').outputs.existingLAWid.value)]"
           },
           "endpointResourceName": {
             "value": "[parameters('dataCollectionEndpointName')]"
@@ -1574,7 +1640,9 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'deployDCE')]"
+        "[resourceId('Microsoft.Resources/deployments', 'deployDCE')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deployLAW')]",
+        "[resourceId('Microsoft.Resources/deployments', 'lawexist')]"
       ]
     },
     {
@@ -1588,13 +1656,13 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('LAWRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2020-10-01', 'full').location]"
+            "value": "[if(equals(parameters('newOrExistingLA'), 'new'), parameters('location'), reference(resourceId('Microsoft.Resources/deployments', 'lawexist'), '2020-10-01').outputs.LAWlocation.value)]"
           },
           "dataCollectionRuleName": {
             "value": "SecurityEvent"
           },
           "workspaceResourceId": {
-            "value": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('LAWRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+            "value": "[if(equals(parameters('newOrExistingLA'), 'new'), reference(resourceId('Microsoft.Resources/deployments', 'deployLAW'), '2020-10-01').outputs.newLAWid.value, reference(resourceId('Microsoft.Resources/deployments', 'lawexist'), '2020-10-01').outputs.existingLAWid.value)]"
           },
           "endpointResourceName": {
             "value": "[parameters('dataCollectionEndpointName')]"
@@ -2544,7 +2612,9 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'deployDCE')]"
+        "[resourceId('Microsoft.Resources/deployments', 'deployDCE')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deployLAW')]",
+        "[resourceId('Microsoft.Resources/deployments', 'lawexist')]"
       ]
     },
     {
@@ -2558,13 +2628,13 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('LAWRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2020-10-01', 'full').location]"
+            "value": "[if(equals(parameters('newOrExistingLA'), 'new'), parameters('location'), reference(resourceId('Microsoft.Resources/deployments', 'lawexist'), '2020-10-01').outputs.LAWlocation.value)]"
           },
           "dataCollectionRuleName": {
             "value": "WindowsEvent"
           },
           "workspaceResourceId": {
-            "value": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('LAWRG')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+            "value": "[if(equals(parameters('newOrExistingLA'), 'new'), reference(resourceId('Microsoft.Resources/deployments', 'deployLAW'), '2020-10-01').outputs.newLAWid.value, reference(resourceId('Microsoft.Resources/deployments', 'lawexist'), '2020-10-01').outputs.existingLAWid.value)]"
           },
           "endpointResourceName": {
             "value": "[parameters('dataCollectionEndpointName')]"
@@ -2702,7 +2772,9 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'deployDCE')]"
+        "[resourceId('Microsoft.Resources/deployments', 'deployDCE')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deployLAW')]",
+        "[resourceId('Microsoft.Resources/deployments', 'lawexist')]"
       ]
     },
     {
@@ -2808,7 +2880,9 @@
         "[resourceId('Microsoft.Resources/deployments', 'DeployDCRSecurityEvent')]",
         "[resourceId('Microsoft.Resources/deployments', 'DeployDCRsef')]",
         "[resourceId('Microsoft.Resources/deployments', 'DeployDCRsyslog')]",
-        "[resourceId('Microsoft.Resources/deployments', 'DeployDCRWindowsEvent')]"
+        "[resourceId('Microsoft.Resources/deployments', 'DeployDCRWindowsEvent')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deployLAW')]",
+        "[resourceId('Microsoft.Resources/deployments', 'lawexist')]"
       ]
     }
   ]
