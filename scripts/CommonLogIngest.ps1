@@ -35,7 +35,7 @@ $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -Defa
 $sample = (Invoke-WebRequest -Uri $SamplePath -UseBasicParsing).Content
 $sampleData = if($Format -eq 'json') {$sample |ConvertFrom-Json} else {$sample |ConvertFrom-Csv}
 
-if(($targetTableName -like 'Custom-*') -and ($sampleData[0].psObject.Properties.name -notcontains "TimeGenerated")) {
+if($sampleData[0].psObject.Properties.name -notcontains "TimeGenerated") {
     $constantdate = (Get-Date).addhours(-5)
     foreach($row in $sampleData)
     {   
