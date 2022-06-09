@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "5343784004969474086"
+      "templateHash": "426276580448869544"
     }
   },
   "parameters": {
@@ -211,7 +211,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "6984289298524750909"
+              "templateHash": "17027171514485291658"
             }
           },
           "parameters": {
@@ -265,35 +265,15 @@
                 }
               }
             ],
-            "imagename": "[format('{0}vm{1}{2}-image', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
             "pipname": "[format('{0}vm{1}{2}-pip', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
             "nsgname": "[format('{0}NSG{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
             "nsgidObject": {
               "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgname'))]"
             },
-            "vmNICname": "[format('{0}vm{1}{2}-nic01', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]"
+            "vmNICname": "[format('{0}vm{1}{2}-nic01', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
+            "imagename": "[format('{0}vm{1}{2}-image', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]"
           },
           "resources": [
-            {
-              "type": "Microsoft.Compute/images",
-              "apiVersion": "2021-11-01",
-              "name": "[variables('imagename')]",
-              "location": "[parameters('location')]",
-              "properties": {
-                "hyperVGeneration": "V1",
-                "storageProfile": {
-                  "dataDisks": [],
-                  "osDisk": {
-                    "blobUri": "[format('{0}vhds/testvm.vhd', reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-08-01').primaryEndpoints.blob)]",
-                    "diskSizeGB": 128,
-                    "osType": "Linux",
-                    "osState": "Generalized",
-                    "storageAccountType": "[parameters('diskSKU')]"
-                  },
-                  "zoneResilient": false
-                }
-              }
-            },
             {
               "condition": "[parameters('deployPublicIP')]",
               "copy": {
@@ -301,7 +281,7 @@
                 "count": "[length(range(0, parameters('sensorCount')))]"
               },
               "type": "Microsoft.Network/publicIPAddresses",
-              "apiVersion": "2021-05-01",
+              "apiVersion": "2020-11-01",
               "name": "[format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[copyIndex()])]",
               "location": "[parameters('location')]",
               "properties": {
@@ -314,7 +294,7 @@
             {
               "condition": "[parameters('deployPublicIP')]",
               "type": "Microsoft.Network/networkSecurityGroups",
-              "apiVersion": "2021-05-01",
+              "apiVersion": "2020-11-01",
               "name": "[variables('nsgname')]",
               "location": "[parameters('location')]",
               "properties": {
@@ -337,7 +317,7 @@
             },
             {
               "type": "Microsoft.Network/virtualNetworks",
-              "apiVersion": "2021-05-01",
+              "apiVersion": "2020-11-01",
               "name": "[format('{0}vnet{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
               "location": "[parameters('location')]",
               "properties": {
@@ -387,6 +367,29 @@
               "dependsOn": [
                 "pipResource",
                 "[resourceId('Microsoft.Network/virtualNetworks', format('{0}vnet{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/images",
+              "apiVersion": "2021-11-01",
+              "name": "[variables('imagename')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "hyperVGeneration": "V1",
+                "storageProfile": {
+                  "dataDisks": [],
+                  "osDisk": {
+                    "blobUri": "[format('{0}vhds/testvm.vhd', reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-08-01').primaryEndpoints.blob)]",
+                    "diskSizeGB": 128,
+                    "osType": "Linux",
+                    "osState": "Generalized",
+                    "storageAccountType": "[parameters('diskSKU')]"
+                  },
+                  "zoneResilient": false
+                }
+              },
+              "dependsOn": [
+                "VMnic"
               ]
             },
             {
@@ -453,7 +456,7 @@
                 "count": "[length(range(0, parameters('sensorCount')))]",
                 "input": {
                   "Name": "[if(parameters('deployPublicIP'), format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]]), 'n/a')]",
-                  "ipAddress": "[if(parameters('deployPublicIP'), reference(resourceId('Microsoft.Network/publicIPAddresses', format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]])), '2021-05-01').ipAddress, 'n/a')]"
+                  "ipAddress": "[if(parameters('deployPublicIP'), reference(resourceId('Microsoft.Network/publicIPAddresses', format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]])), '2020-11-01').ipAddress, 'n/a')]"
                 }
               }
             },
