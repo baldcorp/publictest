@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "10631477372447061789"
+      "templateHash": "1390943181143346460"
     }
   },
   "parameters": {
@@ -211,7 +211,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "5804339756134928957"
+              "templateHash": "16625142368155408512"
             }
           },
           "parameters": {
@@ -446,20 +446,13 @@
             }
           ],
           "outputs": {
-            "pipid": {
-              "type": "array",
-              "copy": {
-                "count": "[length(range(0, parameters('sensorCount')))]",
-                "input": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]]))]"
-              }
-            },
-            "pipIP": {
+            "pipObject": {
               "type": "array",
               "copy": {
                 "count": "[length(range(0, parameters('sensorCount')))]",
                 "input": {
-                  "Name": "[format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]])]",
-                  "ipAddress": "[reference(resourceId('Microsoft.Network/publicIPAddresses', format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]])), '2021-05-01').ipAddress]"
+                  "Name": "[if(parameters('deployPublicIP'), format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]]), 'n/a')]",
+                  "ipAddress": "[if(parameters('deployPublicIP'), reference(resourceId('Microsoft.Network/publicIPAddresses', format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]])), '2021-05-01').ipAddress, 'n/a')]"
                 }
               }
             },
