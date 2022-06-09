@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "1390943181143346460"
+      "templateHash": "5343784004969474086"
     }
   },
   "parameters": {
@@ -22,7 +22,7 @@
     },
     "sensorCount": {
       "type": "int",
-      "defaultValue": 2
+      "defaultValue": 1
     }
   },
   "resources": [
@@ -211,7 +211,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "16625142368155408512"
+              "templateHash": "6984289298524750909"
             }
           },
           "parameters": {
@@ -249,8 +249,7 @@
               "defaultValue": true
             },
             "sensorCount": {
-              "type": "int",
-              "defaultValue": 1
+              "type": "int"
             }
           },
           "variables": {
@@ -393,7 +392,9 @@
             {
               "copy": {
                 "name": "vm",
-                "count": "[length(range(0, parameters('sensorCount')))]"
+                "count": "[length(range(0, parameters('sensorCount')))]",
+                "mode": "serial",
+                "batchSize": 2
               },
               "type": "Microsoft.Compute/virtualMachines",
               "apiVersion": "2021-03-01",
