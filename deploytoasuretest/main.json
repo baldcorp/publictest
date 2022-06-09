@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "8821915341665464065"
+      "templateHash": "1390943181143346460"
     }
   },
   "parameters": {
@@ -19,6 +19,10 @@
     },
     "sourceVHDURL": {
       "type": "string"
+    },
+    "sensorCount": {
+      "type": "int",
+      "defaultValue": 2
     }
   },
   "resources": [
@@ -37,9 +41,6 @@
           },
           "sourceVHDURL": {
             "value": "[parameters('sourceVHDURL')]"
-          },
-          "targetRG": {
-            "value": "[resourceGroup().name]"
           }
         },
         "template": {
@@ -49,7 +50,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "1123105385208302416"
+              "templateHash": "14306015180356350108"
             }
           },
           "parameters": {
@@ -57,20 +58,16 @@
               "type": "string",
               "defaultValue": "[resourceGroup().location]"
             },
+            "baseTime": {
+              "type": "string",
+              "defaultValue": "[utcNow('u')]"
+            },
             "sourceVHDURL": {
               "type": "string"
-            },
-            "targetRG": {
-              "type": "string",
-              "defaultValue": "[resourceGroup().name]"
-            },
-            "roleNameGuid": {
-              "type": "string",
-              "defaultValue": "[guid(resourceGroup().id, deployment().name)]"
             }
           },
           "variables": {
-            "Contributor": "[format('/subscriptions/{0}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c', subscription().subscriptionId)]"
+            "customExpiry": "[dateTimeAdd(parameters('baseTime'), 'PT1H')]"
           },
           "resources": [
             {
@@ -120,22 +117,16 @@
               ]
             },
             {
-              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
-              "apiVersion": "2018-11-30",
-              "name": "[format('managedIdentity{0}', uniqueString(resourceGroup().id))]",
-              "location": "[parameters('location')]"
-            },
-            {
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2020-08-01-preview",
-              "name": "[parameters('roleNameGuid')]",
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2021-08-01",
+              "name": "[format('{0}/{1}/{2}', format('custom{0}', uniqueString(resourceGroup().id)), 'default', 'scripts')]",
               "properties": {
-                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('managedIdentity{0}', uniqueString(resourceGroup().id)))).principalId]",
-                "roleDefinitionId": "[variables('Contributor')]",
-                "principalType": "ServicePrincipal"
+                "defaultEncryptionScope": "$account-encryption-key",
+                "denyEncryptionScopeOverride": false,
+                "publicAccess": "None"
               },
               "dependsOn": [
-                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('managedIdentity{0}', uniqueString(resourceGroup().id)))]"
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', format('custom{0}', uniqueString(resourceGroup().id)), 'default')]"
               ]
             },
             {
@@ -143,22 +134,28 @@
               "apiVersion": "2020-10-01",
               "name": "copyvhd",
               "location": "[parameters('location')]",
-              "kind": "AzurePowerShell",
-              "identity": {
-                "type": "UserAssigned",
-                "userAssignedIdentities": {
-                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('managedIdentity{0}', uniqueString(resourceGroup().id))))]": {}
-                }
-              },
+              "kind": "AzureCLI",
               "properties": {
-                "arguments": "[format('-sourceVHDURL ''{0}'' -targetStorageRG {1} -targetStoragename {2}', parameters('sourceVHDURL'), parameters('targetRG'), format('custom{0}', uniqueString(resourceGroup().id)))]",
-                "azPowerShellVersion": "6.4",
+                "azCliVersion": "2.28.0",
                 "cleanupPreference": "OnSuccess",
                 "retentionInterval": "PT1H",
-                "scriptContent": "      param(\r\n        [string] $sourceVHDURL,\r\n        [string] $targetStorageRG,\r\n        [string] $targetStoragename\r\n      )\r\n      Connect-AzAccount -Identity\r\n\r\n      $TargetStorage = Get-AzStorageAccount -ResourceGroupName $targetStorageRG -Name $targetStoragename\r\n      $blobcopyresult = Start-AzStorageBlobCopy -AbsoluteUri \"$sourceVHDURL\" -DestinationContainer \"vhds\" -DestinationBlob \"testvm.vhd\" -DestinationContext $TargetStorage.Context\r\n\r\n      do {\r\n          $result = $blobcopyresult | Get-AzStorageBlobCopyState\r\n          Write-Output \"VHD copy status - \"$result.Status\r\n          if ($result.Status -eq \"Pending\") {Start-Sleep -Seconds 20 }\r\n      }\r\n      until ($result.Status -eq \"Success\")\r\n\r\n    "
+                "environmentVariables": [
+                  {
+                    "name": "sourceURL",
+                    "secureValue": "[parameters('sourceVHDURL')]"
+                  },
+                  {
+                    "name": "targetVHDURL",
+                    "secureValue": "[format('{0}vhds/testvm.vhd?{1}', reference(resourceId('Microsoft.Storage/storageAccounts', format('custom{0}', uniqueString(resourceGroup().id)))).primaryEndpoints.blob, listServiceSAS(format('custom{0}', uniqueString(resourceGroup().id)), '2021-08-01', createObject('canonicalizedResource', format('/blob/{0}/vhds', format('custom{0}', uniqueString(resourceGroup().id))), 'signedResource', 'c', 'signedProtocol', 'https', 'signedPermission', 'rwl', 'signedServices', 'b', 'signedExpiry', variables('customExpiry'))).serviceSasToken)]"
+                  },
+                  {
+                    "name": "targetscriptURL",
+                    "secureValue": "[format('{0}scripts/post-deploy.sh?{1}', reference(resourceId('Microsoft.Storage/storageAccounts', format('custom{0}', uniqueString(resourceGroup().id)))).primaryEndpoints.blob, listServiceSAS(format('custom{0}', uniqueString(resourceGroup().id)), '2021-08-01', createObject('canonicalizedResource', format('/blob/{0}/scripts', format('custom{0}', uniqueString(resourceGroup().id))), 'signedResource', 'c', 'signedProtocol', 'https', 'signedPermission', 'rwl', 'signedServices', 'b', 'signedExpiry', variables('customExpiry'))).serviceSasToken)]"
+                  }
+                ],
+                "scriptContent": "      echo \"Create script for customscript extension...\"\r\n      mkdir /var/log/scripts\r\n      touch /var/log/scripts/post-deploy.sh\r\n      echo '#!/bin/bash' > /var/log/scripts/post-deploy.sh\r\n      echo 'sudo sed -i \"s/\\(MONITOR_INTERFACES=\\)\\(.*\\)/\\1\\\"local_listener\\\"/g\" /opt/sensor/active/etc/network' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo sed -i \"s/\\(MGMT_INTERFACE=\\)\\(.*\\)/\\1\\\"eth0\\\"/g\" /opt/sensor/active/etc/network' >> /var/log/scripts/post-deploy.sh\r\n      echo 'ipaddr=$(ip addr show eth0 | grep \"inet\\b\" | awk '\"'\"'{print $2}'\"'\"' | cut -d/ -f1)' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo sed -i \"s/\\(MGMT_IP_ADDRESS=\\)\\(.*\\)/\\1\\\"$ipaddr\\\"/g\" /opt/sensor/active/etc/network' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo sed -i \"s/\\(ERSPAN_INTERFACES=\\)\\(.*\\)/\\1\\\"\\\"/g\" /opt/sensor/active/etc/network' >> /var/log/scripts/post-deploy.sh\r\n      echo 'netmask=$(ifconfig eth0 | awk '\"'\"'/netmask/{split($4,a,\":\"); print a[1]}'\"'\"')' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo sed -i \"s/\\(MGMT_SUBNET=\\)\\(.*\\)/\\1\\\"$netmask\\\"/g\" /opt/sensor/active/etc/network' >> /var/log/scripts/post-deploy.sh\r\n      echo 'gateway=$(route -n | awk '\"'\"'{print $2}'\"'\"' | head -3 | tail -1)' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo sed -i \"s/\\(MGMT_GATEWAY=\\)\\(.*\\)/\\1\\\"$gateway\\\"/g\" /opt/sensor/active/etc/network' >> /var/log/scripts/post-deploy.sh\r\n      echo 'dnsip=$(systemd-resolve --status | grep -i \"DNS Servers\" | awk '\"'\"'{print $3}'\"'\"')' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo sed -i \"s/\\(MGMT_DNS=\\)\\(.*\\)/\\1\\\"$dnsip\\\"/g\" /opt/sensor/active/etc/network' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo sed -i \"s/\\(SENSOR_HOSTNAME=\\)\\(.*\\)/\\1\\\"sensortest\\\"/g\" /opt/sensor/active/etc/network' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo sed -i \"s/\\(IS_DEBUG=\\)\\(.*\\)/\\1\\\"False\\\"/g\" /opt/sensor/active/etc/network' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo sed -i \"s/\\(RUN_PROXY=\\)\\(.*\\)/\\1\\\"false\\\"/g\" /opt/sensor/active/etc/network' >> /var/log/scripts/post-deploy.sh\r\n      echo 'cd /opt/sensor/active/' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo /opt/sensor/active/compose/shutdown.sh' >> /var/log/scripts/post-deploy.sh\r\n      echo 'sudo /opt/sensor/active/compose/startup.sh' >> /var/log/scripts/post-deploy.sh\r\n      echo \"Setup AzCopy..\"\r\n      mkdir -p tmp\r\n      cd tmp\r\n      wget -O azcopy_v10.tar.gz https://azcopyvnext.azureedge.net/release20210920/azcopy_linux_amd64_10.12.2.tar.gz && tar -xf azcopy_v10.tar.gz --strip-components=1\r\n      ./azcopy copy \"$sourceURL\" \"$targetVHDURL\"\r\n      ./azcopy copy \"/var/log/scripts/post-deploy.sh\" \"$targetscriptURL\"\r\n    "
               },
               "dependsOn": [
-                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('managedIdentity{0}', uniqueString(resourceGroup().id)))]",
                 "[resourceId('Microsoft.Storage/storageAccounts', format('custom{0}', uniqueString(resourceGroup().id)))]"
               ]
             }
@@ -167,10 +164,6 @@
             "storagename": {
               "type": "string",
               "value": "[format('custom{0}', uniqueString(resourceGroup().id))]"
-            },
-            "identityName": {
-              "type": "string",
-              "value": "[format('managedIdentity{0}', uniqueString(resourceGroup().id))]"
             }
           }
         }
@@ -192,9 +185,6 @@
           "storageAccountName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'copyvhd')).outputs.storagename.value]"
           },
-          "targetRG": {
-            "value": "[resourceGroup().name]"
-          },
           "resourceNamePrefix": {
             "value": "SOC-"
           },
@@ -209,6 +199,9 @@
           },
           "deployPublicIP": {
             "value": "[parameters('deployPublicIP')]"
+          },
+          "sensorCount": {
+            "value": "[parameters('sensorCount')]"
           }
         },
         "template": {
@@ -218,7 +211,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "6902858219150028544"
+              "templateHash": "16625142368155408512"
             }
           },
           "parameters": {
@@ -226,9 +219,13 @@
               "type": "string",
               "defaultValue": "[resourceGroup().location]"
             },
-            "targetRG": {
+            "adminusername": {
               "type": "string",
-              "defaultValue": "[resourceGroup().name]"
+              "defaultValue": "Azuresupersu"
+            },
+            "adminpass": {
+              "type": "secureString",
+              "defaultValue": "[newGuid()]"
             },
             "storageAccountName": {
               "type": "string"
@@ -250,29 +247,63 @@
             "deployPublicIP": {
               "type": "bool",
               "defaultValue": true
+            },
+            "sensorCount": {
+              "type": "int",
+              "defaultValue": 1
             }
           },
           "variables": {
+            "copy": [
+              {
+                "name": "pipProperties",
+                "count": "[length(range(0, parameters('sensorCount')))]",
+                "input": {
+                  "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex('pipProperties')]]))]",
+                  "properties": {
+                    "deleteOption": "Delete"
+                  }
+                }
+              }
+            ],
+            "imagename": "[format('{0}vm{1}{2}-image', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
             "pipname": "[format('{0}vm{1}{2}-pip', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
             "nsgname": "[format('{0}NSG{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
             "nsgidObject": {
               "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgname'))]"
             },
-            "vmNICname": "[format('{0}vm{1}{2}-nic01', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]",
-            "pipProperties": {
-              "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('pipname'))]",
-              "properties": {
-                "deleteOption": "Delete"
-              }
-            },
-            "vmname": "[format('{0}vm{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]"
+            "vmNICname": "[format('{0}vm{1}{2}-nic01', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix'))]"
           },
           "resources": [
             {
+              "type": "Microsoft.Compute/images",
+              "apiVersion": "2021-11-01",
+              "name": "[variables('imagename')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "hyperVGeneration": "V1",
+                "storageProfile": {
+                  "dataDisks": [],
+                  "osDisk": {
+                    "blobUri": "[format('{0}vhds/testvm.vhd', reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-08-01').primaryEndpoints.blob)]",
+                    "diskSizeGB": 128,
+                    "osType": "Linux",
+                    "osState": "Generalized",
+                    "storageAccountType": "[parameters('diskSKU')]"
+                  },
+                  "zoneResilient": false
+                }
+              }
+            },
+            {
               "condition": "[parameters('deployPublicIP')]",
+              "copy": {
+                "name": "pipResource",
+                "count": "[length(range(0, parameters('sensorCount')))]"
+              },
               "type": "Microsoft.Network/publicIPAddresses",
               "apiVersion": "2021-05-01",
-              "name": "[variables('pipname')]",
+              "name": "[format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[copyIndex()])]",
               "location": "[parameters('location')]",
               "properties": {
                 "publicIPAllocationMethod": "Static"
@@ -332,9 +363,13 @@
               ]
             },
             {
+              "copy": {
+                "name": "VMnic",
+                "count": "[length(range(0, parameters('sensorCount')))]"
+              },
               "type": "Microsoft.Network/networkInterfaces",
               "apiVersion": "2021-02-01",
-              "name": "[variables('vmNICname')]",
+              "name": "[format('{0}{1}', variables('vmNICname'), range(0, parameters('sensorCount'))[copyIndex()])]",
               "location": "[parameters('location')]",
               "properties": {
                 "ipConfigurations": [
@@ -345,40 +380,24 @@
                       "subnet": {
                         "id": "[reference(resourceId('Microsoft.Network/virtualNetworks', format('{0}vnet{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix')))).subnets[0].id]"
                       },
-                      "publicIPAddress": "[if(parameters('deployPublicIP'), variables('pipProperties'), json('null'))]"
+                      "publicIPAddress": "[if(parameters('deployPublicIP'), variables('pipProperties')[range(0, parameters('sensorCount'))[copyIndex()]], json('null'))]"
                     }
                   }
                 ]
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Network/publicIPAddresses', variables('pipname'))]",
+                "pipResource",
                 "[resourceId('Microsoft.Network/virtualNetworks', format('{0}vnet{1}{2}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), parameters('resourceNameSuffix')))]"
               ]
             },
             {
-              "type": "Microsoft.Compute/disks",
-              "apiVersion": "2021-12-01",
-              "name": "[format('{0}sensorOS-{1}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id))]",
-              "location": "[parameters('location')]",
-              "sku": {
-                "name": "[parameters('diskSKU')]"
+              "copy": {
+                "name": "vm",
+                "count": "[length(range(0, parameters('sensorCount')))]"
               },
-              "properties": {
-                "creationData": {
-                  "createOption": "Import",
-                  "sourceUri": "[format('{0}vhds/testvm.vhd', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('targetRG')), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-08-01').primaryEndpoints.blob)]",
-                  "storageAccountId": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('targetRG')), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-                },
-                "diskSizeGB": 128,
-                "hyperVGeneration": "V1",
-                "networkAccessPolicy": "AllowAll",
-                "osType": "Linux"
-              }
-            },
-            {
               "type": "Microsoft.Compute/virtualMachines",
               "apiVersion": "2021-03-01",
-              "name": "[variables('vmname')]",
+              "name": "[format('{0}vm{1}{2}{3}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), range(0, parameters('sensorCount'))[copyIndex()], parameters('resourceNameSuffix'))]",
               "location": "[parameters('location')]",
               "properties": {
                 "hardwareProfile": {
@@ -386,38 +405,63 @@
                 },
                 "storageProfile": {
                   "osDisk": {
-                    "createOption": "Attach",
-                    "osType": "Linux",
+                    "createOption": "FromImage",
                     "managedDisk": {
-                      "id": "[resourceId('Microsoft.Compute/disks', format('{0}sensorOS-{1}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id)))]"
+                      "storageAccountType": "[parameters('diskSKU')]"
                     },
                     "deleteOption": "Delete"
+                  },
+                  "imageReference": {
+                    "id": "[resourceId('Microsoft.Compute/images', variables('imagename'))]"
                   }
                 },
                 "networkProfile": {
                   "networkInterfaces": [
                     {
-                      "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('vmNICname'))]"
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}{1}', variables('vmNICname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]]))]"
                     }
                   ]
+                },
+                "osProfile": {
+                  "computerName": "[format('Sensor{0}', range(0, parameters('sensorCount'))[copyIndex()])]",
+                  "adminUsername": "[parameters('adminusername')]",
+                  "adminPassword": "[parameters('adminpass')]",
+                  "linuxConfiguration": {
+                    "patchSettings": {
+                      "patchMode": "ImageDefault"
+                    }
+                  }
                 },
                 "diagnosticsProfile": {
                   "bootDiagnostics": {
                     "enabled": true,
-                    "storageUri": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('targetRG')), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-08-01').primaryEndpoints.blob]"
+                    "storageUri": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-08-01').primaryEndpoints.blob]"
                   }
                 }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Compute/disks', format('{0}sensorOS-{1}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id)))]",
-                "[resourceId('Microsoft.Network/networkInterfaces', variables('vmNICname'))]"
+                "[resourceId('Microsoft.Compute/images', variables('imagename'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', format('{0}{1}', variables('vmNICname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]]))]"
               ]
             }
           ],
           "outputs": {
+            "pipObject": {
+              "type": "array",
+              "copy": {
+                "count": "[length(range(0, parameters('sensorCount')))]",
+                "input": {
+                  "Name": "[if(parameters('deployPublicIP'), format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]]), 'n/a')]",
+                  "ipAddress": "[if(parameters('deployPublicIP'), reference(resourceId('Microsoft.Network/publicIPAddresses', format('{0}{1}', variables('pipname'), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]])), '2021-05-01').ipAddress, 'n/a')]"
+                }
+              }
+            },
             "vmname": {
-              "type": "string",
-              "value": "[variables('vmname')]"
+              "type": "array",
+              "copy": {
+                "count": "[length(range(0, parameters('sensorCount')))]",
+                "input": "[format('{0}vm{1}{2}{3}', parameters('resourceNamePrefix'), uniqueString(resourceGroup().id), range(0, parameters('sensorCount'))[range(0, parameters('sensorCount'))[copyIndex()]], parameters('resourceNameSuffix'))]"
+              }
             }
           }
         }
@@ -427,9 +471,13 @@
       ]
     },
     {
+      "copy": {
+        "name": "postDeployModule",
+        "count": "[length(range(0, parameters('sensorCount')))]"
+      },
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2020-10-01",
-      "name": "Post-Deploy",
+      "name": "[format('Post-Deploy{0}', range(0, parameters('sensorCount'))[copyIndex()])]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -440,13 +488,10 @@
             "value": "[parameters('location')]"
           },
           "vmanme": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'VMdeployment')).outputs.vmname.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'VMdeployment')).outputs.vmname.value[range(0, parameters('sensorCount'))[copyIndex()]]]"
           },
-          "targetRG": {
-            "value": "[resourceGroup().name]"
-          },
-          "identityname": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'copyvhd')).outputs.identityName.value]"
+          "storageName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'copyvhd')).outputs.storagename.value]"
           }
         },
         "template": {
@@ -456,18 +501,14 @@
             "_generator": {
               "name": "bicep",
               "version": "0.5.6.12127",
-              "templateHash": "10077634236047774778"
+              "templateHash": "17460483991552605930"
             }
           },
           "parameters": {
-            "identityname": {
+            "vmanme": {
               "type": "string"
             },
-            "targetRG": {
-              "type": "string",
-              "defaultValue": "[resourceGroup().name]"
-            },
-            "vmanme": {
+            "storageName": {
               "type": "string"
             },
             "location": {
@@ -477,23 +518,26 @@
           },
           "resources": [
             {
-              "type": "Microsoft.Resources/deploymentScripts",
-              "apiVersion": "2020-10-01",
-              "name": "PostDeployScript",
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2021-11-01",
+              "name": "[format('{0}/{1}', parameters('vmanme'), 'runCustomScript')]",
               "location": "[parameters('location')]",
-              "kind": "AzurePowerShell",
-              "identity": {
-                "type": "UserAssigned",
-                "userAssignedIdentities": {
-                  "[format('{0}', extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('targetRG')), 'Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityname')))]": {}
-                }
-              },
               "properties": {
-                "arguments": "[format('-resourceGroup {0} -vmName {1}', parameters('targetRG'), parameters('vmanme'))]",
-                "azPowerShellVersion": "6.4",
-                "cleanupPreference": "OnSuccess",
-                "retentionInterval": "PT1H",
-                "scriptContent": "      param(\r\n        [string] $resourceGroup,\r\n        [string] $vmName\r\n      )\r\n      Connect-AzAccount -Identity\r\n       \r\n      $remoteCommands = \r\n@'\r\n#!/bin/sh\r\nsudo sed -i \"s/\\(MONITOR_INTERFACES=\\)\\(.*\\)/\\1\\\"local_listener\\\"/g\" /opt/sensor/active/etc/network\r\nsudo sed -i \"s/\\(MGMT_INTERFACE=\\)\\(.*\\)/\\1\\\"eth0\\\"/g\" /opt/sensor/active/etc/network\r\nipaddr=$(ip addr show eth0 | grep \"inet\\b\" | awk '{print $2}' | cut -d/ -f1)\r\nsudo sed -i \"s/\\(MGMT_IP_ADDRESS=\\)\\(.*\\)/\\1\\\"$ipaddr\\\"/g\" /opt/sensor/active/etc/network\r\nsudo sed -i \"s/\\(ERSPAN_INTERFACES=\\)\\(.*\\)/\\1\\\"\\\"/g\" /opt/sensor/active/etc/network\r\nnetmask=$(ifconfig eth0 | awk '/netmask/{split($4,a,\":\"); print a[1]}')\r\nsudo sed -i \"s/\\(MGMT_SUBNET=\\)\\(.*\\)/\\1\\\"$netmask\\\"/g\" /opt/sensor/active/etc/network\r\ngateway=$(route -n | awk '{print $2}' | head -3 | tail -1)\r\nsudo sed -i \"s/\\(MGMT_GATEWAY=\\)\\(.*\\)/\\1\\\"$gateway\\\"/g\" /opt/sensor/active/etc/network\r\ndnsip=$(systemd-resolve --status | grep -i \"DNS Servers\" | awk '{print $3}')\r\nsudo sed -i \"s/\\(MGMT_DNS=\\)\\(.*\\)/\\1\\\"$dnsip\\\"/g\" /opt/sensor/active/etc/network\r\nsudo sed -i \"s/\\(SENSOR_HOSTNAME=\\)\\(.*\\)/\\1\\\"sensortest\\\"/g\" /opt/sensor/active/etc/network\r\nsudo sed -i \"s/\\(IS_DEBUG=\\)\\(.*\\)/\\1\\\"False\\\"/g\" /opt/sensor/active/etc/network\r\nsudo sed -i \"s/\\(RUN_PROXY=\\)\\(.*\\)/\\1\\\"false\\\"/g\" /opt/sensor/active/etc/network\r\ncd /opt/sensor/active/\r\nsudo /opt/sensor/active/compose/shutdown.sh\r\nsudo /opt/sensor/active/compose/startup.sh\r\n'@\r\n\r\n      Set-Content -Path .\\post_deploy.sh -Value $remoteCommands -Force\r\n\r\n      Invoke-AzVMRunCommand -ResourceGroupName \"$resourceGroup\" -Name \"$vmName\" -CommandId 'RunShellScript' -ScriptPath .\\post_deploy.sh\r\n    "
+                "autoUpgradeMinorVersion": true,
+                "publisher": "Microsoft.Azure.Extensions",
+                "type": "CustomScript",
+                "typeHandlerVersion": "2.1",
+                "settings": {
+                  "skipDos2Unix": false
+                },
+                "protectedSettings": {
+                  "commandToExecute": "sh post-deploy.sh",
+                  "storageAccountName": "[parameters('storageName')]",
+                  "storageAccountKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageName')), '2021-08-01').keys[0].value]",
+                  "fileUris": [
+                    "[format('{0}scripts/post-deploy.sh', reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageName')), '2021-08-01').primaryEndpoints.blob)]"
+                  ]
+                }
               }
             }
           ]
