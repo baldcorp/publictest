@@ -265,14 +265,7 @@ else
 	$DCEUrl = Get-AutomationVariable -Name "DCEUrl"
 }
 
-if($Test)
-{	
-	if ($($($logData | ConvertFrom-Json).GetType()).basetype.name -eq "Object") {
-        $logData = "[$logData]"
-    }
-    Write-Output $logData
-}
-else
+if(!$Test)
 {
 	$DCEUrl = Get-AutomationVariable -Name "DCEUrl"
     $token = Get-AzAccessToken -ResourceUrl 'https://monitor.azure.com/'
