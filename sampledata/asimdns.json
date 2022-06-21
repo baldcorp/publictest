@@ -45,7 +45,7 @@
   },
   {
     "EventOriginalType": 262,
-    "TimeGenerated [Jerusalem]": "6/20/2022, 11:38:55.820 AM",
+    "TimeGenerated": "6/20/2022, 11:38:55.820 AM",
     "EventCount": 1,
     "EventType": "Query",
     "EventSubType": "response",
@@ -69,7 +69,7 @@
   },
   {
     "EventOriginalType": 258,
-    "TimeGenerated [Jerusalem]": "6/20/2022, 11:39:55.820 AM",
+    "TimeGenerated": "6/20/2022, 11:39:55.820 AM",
     "EventCount": 1,
     "EventType": "Query",
     "EventSubType": "response",
@@ -91,7 +91,7 @@
   },
   {
     "EventOriginalType": 280,
-    "TimeGenerated [Jerusalem]": "6/20/2022, 11:40:55.820 AM",
+    "TimeGenerated": "6/20/2022, 11:40:55.820 AM",
     "EventCount": 1,
     "EventType": "Query",
     "EventSubType": "response",
@@ -113,7 +113,7 @@
   },
   {
     "EventOriginalType": 256,
-    "TimeGenerated [Jerusalem]": "6/20/2022, 11:41:55.820 AM",
+    "TimeGenerated": "6/20/2022, 11:41:55.820 AM",
     "EventCount": 1,
     "EventType": "Query",
     "EventSubType": "request",
@@ -135,7 +135,7 @@
   },
   {
     "EventOriginalType": 260,
-    "TimeGenerated [Jerusalem]": "6/20/2022, 11:42:55.820 AM",
+    "TimeGenerated": "6/20/2022, 11:42:55.820 AM",
     "EventCount": 1,
     "EventType": "Query",
     "EventSubType": "request",
@@ -159,7 +159,7 @@
   },
   {
     "EventOriginalType": 261,
-    "TimeGenerated [Jerusalem]": "6/20/2022, 11:43:55.820 AM",
+    "TimeGenerated": "6/20/2022, 11:43:55.820 AM",
     "EventCount": 1,
     "EventType": "Query",
     "EventSubType": "response",
@@ -181,7 +181,7 @@
   },
   {
     "EventOriginalType": 279,
-    "TimeGenerated [Jerusalem]": "6/20/2022, 11:44:55.820 AM",
+    "TimeGenerated": "6/20/2022, 11:44:55.820 AM",
     "EventCount": 1,
     "EventType": "Query",
     "EventSubType": "response",
@@ -203,7 +203,7 @@
   },
   {
     "EventOriginalType": 257,
-    "TimeGenerated [Jerusalem]": "6/20/2022, 11:49:55.820 AM",
+    "TimeGenerated": "6/20/2022, 11:49:55.820 AM",
     "EventCount": 1,
     "EventType": "Query",
     "EventSubType": "response",
