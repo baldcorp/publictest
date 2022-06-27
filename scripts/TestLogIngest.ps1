@@ -15,11 +15,14 @@ param (
 	[bool]$Test = $true
 )
 
+$VerbosePreference = 'SilentlyContinue'
+
 Disable-AzContextAutosave -Scope Process
 # Connect to Azure with system-assigned managed identity
 $AzureContext = (Connect-AzAccount -Identity).context
 # set and store context
 $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
+
 
 $sample = (Invoke-WebRequest -Uri $SamplePath -UseBasicParsing).Content
 $sampleData = if($Format -eq 'json') {$sample |ConvertFrom-Json} else {$sample |ConvertFrom-Csv}
@@ -81,8 +84,6 @@ foreach ($field in $fields) {
     }
   }  
 }
-#$timestampFields = @($fields|? {[DateTime]::TryParseExact($row.$_, $formats, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, $date)})
-#$timestampFields = @($fields|? {($row.$_.GetType().name -ne "PSCustomObject") -and ([DateTime]::TryParseExact($row.$_, $formats, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, $date))})
 $tsField = $timestampFields[0]
 $alldates = $sampleData.$tsField |
 %{
@@ -93,7 +94,6 @@ $alldates = $sampleData.$tsField |
 $FirstDate = $alldates | Sort-Object | Select-Object -First 1
 $lastDate = $alldates | Sort-Object | Select-Object -Last 1
 
-#$tsField = $timestampFields[0]
 foreach($row in $sampleData)
 {
 
@@ -103,9 +103,6 @@ foreach($row in $sampleData)
 
     [DateTime]::TryParseExact($dateStr, $formats, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, $date) | Out-Null
    
-    #$shift = ($lastDate - $date.Value).TotalSeconds
-    
-    #$newDate = $now.AddSeconds(-$shift)
 	if ($startdate) {
 		$shift = ($FirstDate - $date.Value).TotalSeconds
         $result = New-Object DateTime
@@ -163,4 +160,3 @@ if($Test)
     }
     Write-Output $logData
 }
-
