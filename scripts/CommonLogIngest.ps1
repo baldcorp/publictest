@@ -265,55 +265,85 @@ else
 	$DCEUrl = Get-AutomationVariable -Name "DCEUrl"
 }
 
-if(!$Test)
-{
-	$DCEUrl = Get-AutomationVariable -Name "DCEUrl"
-    $token = Get-AzAccessToken -ResourceUrl 'https://monitor.azure.com/'
-    $uri = "$DCEUrl/dataCollectionRules/$DCRId/streams/Custom-MyTableRawData?api-version=2021-11-01-preview"
-	Write-Output "DCRID - " $DCRId
-	Write-Output "URI - " $uri
-	if ($($($logData | ConvertFrom-Json).GetType()).basetype.name -eq "Object") {
-        $logData = "[$logData]"
+#execute log ingestion
+$DCEUrl = Get-AutomationVariable -Name "DCEUrl"
+$token = Get-AzAccessToken -ResourceUrl 'https://monitor.azure.com/'
+$uri = "$DCEUrl/dataCollectionRules/$DCRId/streams/Custom-MyTableRawData?api-version=2021-11-01-preview"
+
+$chunkMaxSize = 500000
+if ([System.Text.Encoding]::UTF8.GetByteCount($($sampleData|ConvertTo-Json)) -gt $chunkMaxSize) {
+    write-output "The log is too big, will be split into smaller parts"
+    $sampleDatachunksize = 0
+    $sampleDatachunk = @()
+    foreach ($sample in $sampleData) {
+        $currentsize = [System.Text.Encoding]::UTF8.GetByteCount($($sample|ConvertTo-Json))
+        $sampleDatachunksize = $sampleDatachunksize + $currentsize
+        if (($sampleDatachunksize -lt $chunkMaxSize) -and ($sample -ne  $sampleData[-1])) {
+            $sampleDatachunk += $sample
+        }elseif (($sampleDatachunksize -lt $chunkMaxSize) -and ($sample -eq  $sampleData[-1])) {
+            $sampleDatachunk += $sample
+            $ingestResult = Invoke-RestMethod -Uri $uri -Method "Post" -Body $($sampleDatachunk | ConvertTo-Json) -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
+            write-output $ingestResult
+        }else {
+            $sampleDatachunksize = $currentsize
+            $ingestResult = Invoke-RestMethod -Uri $uri -Method "Post" -Body $($sampleDatachunk | ConvertTo-Json) -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
+            $sampleDatachunk = @()
+            $sampleDatachunk += $sample
+            write-output $ingestResult
+            Start-Sleep -seconds 2
+        }
     }
-	if ($logData.Length -gt 10000) {
-		Write-Output "The output is too long, will be shown first and last 5000 symbols"
-		write-output $logData.SubString(0, 5000)
-		write-output $logData.SubString($logData.Length - 5000)
-	}else {
-		write-output $logData
-	}
-
-	$chunkMaxSize = 500000
-	if ([System.Text.Encoding]::UTF8.GetByteCount($($sampleData|ConvertTo-Json)) -gt $chunkMaxSize) {
-		write-output "The log is too big, will be split into smaller parts"
-		$sampleDatachunksize = 0
-		$sampleDatachunk = @()
-		foreach ($sample in $sampleData) {
-			$currentsize = [System.Text.Encoding]::UTF8.GetByteCount($($sample|ConvertTo-Json))
-			$sampleDatachunksize = $sampleDatachunksize + $currentsize
-			if (($sampleDatachunksize -lt $chunkMaxSize) -and ($sample -ne  $sampleData[-1])) {
-				$sampleDatachunk += $sample
-			}elseif (($sampleDatachunksize -lt $chunkMaxSize) -and ($sample -eq  $sampleData[-1])) {
-				$sampleDatachunk += $sample
-				$ingestResult = Invoke-RestMethod -Uri $uri -Method "Post" -Body $($sampleDatachunk | ConvertTo-Json) -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
-				write-output $ingestResult
-			}else {
-				$sampleDatachunksize = $currentsize
-				$ingestResult = Invoke-RestMethod -Uri $uri -Method "Post" -Body $($sampleDatachunk | ConvertTo-Json) -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
-				$sampleDatachunk = @()
-				$sampleDatachunk += $sample
-				write-output $ingestResult
-				Start-Sleep -seconds 2
-			}
-		}
-	} else {
-		write-output "The log is Ok, do not need to split it"
-		Invoke-RestMethod -Uri $uri -Method "Post" -Body $logData -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
-	}
-
-
-    #Invoke-RestMethod -Uri $uri -Method "Post" -Body $logData -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
+} else {
+    write-output "The log is Ok, do not need to split it"
+    Invoke-RestMethod -Uri $uri -Method "Post" -Body $logData -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
 }
+
+#preparing the output
+$AARG = Get-AutomationVariable -Name "AARG"
+$AutomationJobId = $PSPrivateMetadata.JobId.Guid
+$StartTime = (Get-Date).AddHours(-3)
+# Loop here for a max of 90 seconds in order for the activity log to show up.
+$JobInfo = @{}
+$TimeoutLoop = 0
+While ($JobInfo.Count -eq 0 -and $TimeoutLoop -lt 9 ) {
+    $TimeoutLoop++
+    $JobAcvitityLogs = Get-AzLog -ResourceGroupName $AARG -StartTime $StartTime `
+    | Where-Object {$_.Authorization.Action -eq "Microsoft.Automation/automationAccounts/jobs/write"}
+    # Find caller for job
+    foreach ($Log in $JobAcvitityLogs)
+    {
+        # Get job resource
+        $JobResource = Get-AzResource -ResourceId $Log.ResourceId
+        if ($JobResource.Properties.jobId -eq $AutomationJobId)
+        { 
+            if ($JobInfo[$JobResource.Properties.jobId] -eq $null)
+            {
+                	$JobInfo.Add($JobResource.Properties.jobId,$log.Caller)
+            }
+            break
+        }
+    }
+    # If we didn't find the running job in activity log, sleep and try again.
+    if ($JobInfo.Count -eq 0) 
+    {
+        Start-Sleep 10
+    }
+}
+
+Write-Output "Started by $($JobInfo.Values)" 
+
+if ($($($logData | ConvertFrom-Json).GetType()).basetype.name -eq "Object") {
+    $logData = "[$logData]"
+}
+if ($logData.Length -gt 10000) {
+    Write-Output "The output is too long, will be shown first and last 5000 symbols"
+    write-output $logData.SubString(0, 5000)
+    write-output $logData.SubString($logData.Length - 5000)
+}else {
+    write-output $logData
+}
+
+
 
 if($targetTableName -like 'Custom-*' -and !$Test)
 {
