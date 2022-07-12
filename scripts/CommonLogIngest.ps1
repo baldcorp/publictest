@@ -35,7 +35,9 @@ $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -Defa
 $sample = (Invoke-WebRequest -Uri $SamplePath -UseBasicParsing).Content
 $sampleData = if($Format -eq 'json') {$sample |ConvertFrom-Json} else {$sample |ConvertFrom-Csv}
 
-if($sampleData[0].psObject.Properties.name -notcontains "TimeGenerated") {
+if ($sampleData[0].psobject.Properties.name -like  "TimeGenerated*``[*``]*") {
+	write-host "Log file has TimeGenerated field"
+}elseif($sampleData[0].psObject.Properties.name -notcontains "TimeGenerated") {
     $constantdate = (Get-Date).addhours(-5)
     foreach($row in $sampleData)
     {   
@@ -270,6 +272,10 @@ $DCEUrl = Get-AutomationVariable -Name "DCEUrl"
 $token = Get-AzAccessToken -ResourceUrl 'https://monitor.azure.com/'
 $uri = "$DCEUrl/dataCollectionRules/$DCRId/streams/Custom-MyTableRawData?api-version=2021-11-01-preview"
 
+if ($($($logData | ConvertFrom-Json).GetType()).basetype.name -eq "Object") {
+    $logData = "[$logData]"
+}
+
 $chunkMaxSize = 500000
 if ([System.Text.Encoding]::UTF8.GetByteCount($($sampleData|ConvertTo-Json)) -gt $chunkMaxSize) {
     write-output "The log is too big, will be split into smaller parts"
@@ -332,9 +338,6 @@ While ($JobInfo.Count -eq 0 -and $TimeoutLoop -lt 9 ) {
 
 Write-Output "Started by $($JobInfo.Values)" 
 
-if ($($($logData | ConvertFrom-Json).GetType()).basetype.name -eq "Object") {
-    $logData = "[$logData]"
-}
 if ($logData.Length -gt 10000) {
     Write-Output "The output is too long, will be shown first and last 5000 symbols"
     write-output $logData.SubString(0, 5000)
