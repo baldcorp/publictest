@@ -1,10 +1,12 @@
 param (
 	[Parameter(Mandatory=$false)]
-	[string]$SamplePath = 'https://raw.githubusercontent.com/Azure/Azure-Sentinel/master/Sample Data/CEF/AkamaiSIEM.csv',
+	[string]$SamplePath = 'https://raw.githubusercontent.com/Yaniv-Shasha/Sentinel/master/Sample_Data/scenarios/RiskIQ_Senitnel/Events/scenario03/02-Karen_network_login.json',
 	[Parameter(Mandatory=$false)]
 	[string]$Format = 'csv',
 	[Parameter(Mandatory=$false)]
 	[string]$targetTableName = 'CommonSecurityLog',
+    [Parameter(Mandatory=$false)]
+    [string]$existedDCRLink = "",
 	[Parameter(Mandatory=$false)]
 	[string]$Replacements = '{
     "SourceIP": [
@@ -18,8 +20,6 @@ param (
       }
     ]
   }',
-    [Parameter(Mandatory=$false)]
-	[string]$timestampColumn = "",
 	[Parameter(Mandatory=$false)]
 	[string]$startdate = '',
 	[Parameter(Mandatory=$false)]
@@ -40,14 +40,9 @@ if ($sampleData[0].psobject.Properties.name -like  "TimeGenerated*``[*``]*") {
 }elseif($sampleData[0].psObject.Properties.name -notcontains "TimeGenerated") {
     $constantdate = (Get-Date).addhours(-5)
     foreach($row in $sampleData)
-    {   
-        if (!$timestampColumn) {
-            $constantdate = $constantdate.AddSeconds($(Get-Random -Minimum 10 -Maximum 30))
-            $row | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $constantdate.ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
-        }else {
-            $row | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $row.$timestampColumn
-        }
-
+    {
+        $constantdate = $constantdate.AddSeconds($(Get-Random -Minimum 10 -Maximum 30))
+        $row | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $constantdate.ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
     }
 }
 
@@ -87,7 +82,6 @@ $fields = $row.psObject.Properties.Name
 [ref]$date = [DateTime]::MinValue
 $timestampFields = @()
 foreach ($field in $fields) {
-  Write-Host "Field name = " $field
   if ($null -ne $row.$field) {
     if (($row.$field.GetType().name -ne "PSCustomObject") -and ([DateTime]::TryParseExact($row.$field, $formats, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, $date))){
       $timestampFields += $field
@@ -171,19 +165,14 @@ $logData = $sampleData| Sort-Object -Property TimeGenerated | ConvertTo-Json
 
 if($targetTableName -like 'Custom-*' -and !$Test)
 {
-    $CustomTableName = $targetTableName.Remove(0,7)
     $wsRG = Get-AutomationVariable -Name "WorkspaceRG"
     $wsName = Get-AutomationVariable -Name "WorkspaceName"
     $ws = Get-AzOperationalInsightsWorkspace -ResourceGroupName $wsRG -Name $wsName
-    $TargetTable = Get-AzOperationalInsightsTable -ResourceGroupName $wsRG -WorkspaceName $wsName -TableName $CustomTableName -ErrorAction SilentlyContinue
+	$CustomTableName = $targetTableName.Remove(0,7)
+	$TargetTable = Get-AzOperationalInsightsTable -ResourceGroupName $wsRG -WorkspaceName $wsName -TableName $CustomTableName -ErrorAction SilentlyContinue
 	$columns = New-Object System.Collections.ArrayList($null)
-	foreach ($column in $($sampleData[0].psobject.properties | Where-Object {$_.name -notin "Type", "_ResourceId", 'MG', 'TenantId'}) ){
-		if (($column.TypeNameOfValue -eq "System.String") -and ($column.Name -ne "TimeGenerated")) {
-			$columns += @{name = $($column.Name).substring(0, [System.Math]::Min(45, $($($column.Name).Length))); type = "string"}
-		}else {
-			$columns += @{name = $($column.Name).substring(0, [System.Math]::Min(45, $($($column.Name).Length))); type = "datetime"}
-		}
-	}
+
+    
     if (!$TargetTable) {
 		Write-Output "Target custom table was not found, will be created ..."
         $customTable = [PSCustomObject]@{
@@ -194,8 +183,56 @@ if($targetTableName -like 'Custom-*' -and !$Test)
                 }
             }
         }
+
+        if (!$existedDCRLink) {
+            #usual case to create table and DCR
+            
+            Write-Output "SchemaLink - NO"
+    
+            foreach ($column in $($sampleData[0].psobject.properties | Where-Object {$_.name -notin "Type", "_ResourceId", 'MG', 'TenantId'}) ){
+                if (($column.TypeNameOfValue -eq "System.String") -and ($column.Name -ne "TimeGenerated")) {
+                    $columns += @{name = $($column.Name).substring(0, [System.Math]::Min(45, $($($column.Name).Length))); type = "string"}
+                }else {
+                    $columns += @{name = $($column.Name).substring(0, [System.Math]::Min(45, $($($column.Name).Length))); type = "datetime"}
+                }
+            }
+            
+        } else {
+            Write-Output "SchemaLink - YES"
+            $DCRFileSample = (Invoke-WebRequest -Uri $existedDCRLink -UseBasicParsing).Content
+            $DCRFilesampleData = $DCRFileSample |ConvertFrom-Json
+            #$CustomTableName = $DCRFilesampleData.Name
+            foreach ($column in ($DCRFilesampleData.Properties | Where-Object { ($_.name -notin "Type", "_ResourceId", 'MG', 'TenantId') -and ($_.type -notin "Double", "SByte", "guid")})) {
+                #if ($($column.Name).substring($($column.Name).length-2) -like "_*"){
+                    #$column.Name = $($column.Name).substring(0,$($column.Name).Length-2)
+                $column.Name = $($column.Name).substring(0, [System.Math]::Min(45, $($($column.Name).Length)))
+                if ($column.Type -eq "Bool") {$column.Type = "boolean"}
+                $columns += @{name = $($column.Name); type = $($column.Type.ToLower())}
+            }
+            #for duplicates -numerate it
+            foreach($column in $columns){
+                $i = 0
+                if ((($columns.name -match $column.name).count -gt 1) -and ($column.name.Length -eq 45)) {
+                    $duplicates = $columns | Where-Object {$_.name -eq $column.name}
+                    foreach ($duplicate in $duplicates) {
+                        $num = "{0:D2}" -f $i
+                        $duplicate.name = $($column.Name).substring(0, [System.Math]::Min(43, $($($column.Name).Length))) + "$num"
+                        #$duplicate.name
+                        $i++
+                    }
+                }
+            }
+        }
+
         $customTable.Properties.schema.columns = $columns
         Invoke-AzRestMethod -Path $("$($ws.ResourceId)/tables/$CustomTableName"+'?api-version=2021-12-01-preview') -Method PUT -payload $($customTable|ConvertTo-Json -Depth 12)
+    } else {
+        Write-Output "Target custom table $CustomTableName was found, have to use existed schema"
+        $getTable = (Invoke-AzRestMethod -Path $("$($targetTable.id)"+'?api-version=2021-12-01-preview') -Method GET).Content | ConvertFrom-Json
+        $columnsTable = $getTable.properties.schema.columns | Select-Object -Property Name, type 
+        foreach ($column in $columnsTable | Where-Object { ($_.name -notin "Type", "_ResourceId", 'MG', 'TenantId')}) {
+            $columns += @{name = $($column.Name); type = $($column.Type.ToLower())}
+        }
     }
 
     $DCRRG = Get-AutomationVariable -Name "DCRE_RG"
@@ -264,7 +301,7 @@ else
 {
 	$targetTableName = $targetTableName.Split('-')[0]
 	$DCRId = Get-AutomationVariable -Name "$($targetTableName)DCRId"
-	$DCEUrl = Get-AutomationVariable -Name "DCEUrl"
+	#$DCEUrl = Get-AutomationVariable -Name "DCEUrl"
 }
 
 #execute log ingestion
@@ -301,7 +338,18 @@ if ([System.Text.Encoding]::UTF8.GetByteCount($($sampleData|ConvertTo-Json)) -gt
     }
 } else {
     write-output "The log is Ok, do not need to split it"
-    Invoke-RestMethod -Uri $uri -Method "Post" -Body $logData -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
+    try {
+        $return = Invoke-RestMethod -Uri $uri -Method "Post" -Body $logData -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
+    } 
+    catch [System.Net.WebException], [System.Net.HttpWebRequest] {
+        $return = $_.Exception.Response
+        Write-Error $return
+        throw "Some errors are occurred"
+    }
+    catch {
+        Write-Error $_.Exception
+        throw "Some errors are occurred"
+    }
 }
 
 #preparing the output
