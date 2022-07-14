@@ -6,6 +6,8 @@ param (
 	[Parameter(Mandatory=$false)]
 	[string]$targetTableName = 'CommonSecurityLog',
 	[Parameter(Mandatory=$false)]
+    [string]$existedDCRLink = "",
+	[Parameter(Mandatory=$false)]
 	[string]$Replacements = '{
     "SourceIP": [
       {
@@ -48,7 +50,7 @@ if (Get-AzAutomationSchedule -AutomationAccountName $automationAccountName -Name
 	}elseif ($Recurring -eq "Weekly") {
 		New-AzAutomationSchedule -AutomationAccountName $automationAccountName -Name "$ScheduleName" -StartTime $StartTime -WeekInterval 1 -ResourceGroupName $automationAccountRG
 	}
-	$params = @{"SamplePath"="$SamplePath"; "Format"="$Format"; "targetTableName"="$targetTableName";"Replacements"="$Replacements"; "Test" = $false}
+	$params = @{"SamplePath"="$SamplePath"; "Format"="$Format"; "targetTableName"="$targetTableName";"Replacements"="$Replacements"; "existedDCRLink"="$existedDCRLink"; "Test" = $false}
     Register-AzAutomationScheduledRunbook -AutomationAccountName $automationAccountName `
     	-Name "CommonLogIngest" -ScheduleName "$ScheduleName" -Parameters $params `
         -ResourceGroupName $automationAccountRG
