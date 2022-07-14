@@ -342,8 +342,7 @@ if ([System.Text.Encoding]::UTF8.GetByteCount($($sampleData|ConvertTo-Json)) -gt
         $return = Invoke-RestMethod -Uri $uri -Method "Post" -Body $logData -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
     } 
     catch [System.Net.WebException], [System.Net.HttpWebRequest] {
-        $return = $_.Exception.Response
-        Write-Error $return
+		Write-Error $_.Exception
         throw "Some errors are occurred"
     }
     catch {
