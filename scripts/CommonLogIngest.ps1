@@ -259,7 +259,7 @@ if($targetTableName -like 'Custom-*' -and !$Test)
         $customDCR.resources += [PSCustomObject]@{
             type = "Microsoft.Insights/dataCollectionRules"
             name = $CustomDCRName
-            location = "$($ws.location)"
+            location = "eastus"
             apiVersion = "2021-09-01-preview"
             properties = [PSCustomObject]@{
                 dataCollectionEndpointId = $DCEresourceID
@@ -342,7 +342,8 @@ if ([System.Text.Encoding]::UTF8.GetByteCount($($sampleData|ConvertTo-Json)) -gt
         $return = Invoke-RestMethod -Uri $uri -Method "Post" -Body $logData -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
     } 
     catch [System.Net.WebException], [System.Net.HttpWebRequest] {
-		Write-Error $_.Exception
+        $return = $_.Exception.Response
+        Write-Error $return
         throw "Some errors are occurred"
     }
     catch {
