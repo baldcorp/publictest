@@ -35,8 +35,14 @@ $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -Defa
 $sample = (Invoke-WebRequest -Uri $SamplePath -UseBasicParsing).Content
 $sampleData = if($Format -eq 'json') {$sample |ConvertFrom-Json} else {$sample |ConvertFrom-Csv}
 
-if ($sampleData[0].psobject.Properties.name -like  "TimeGenerated*``[*``]*") {
-	write-host "Log file has TimeGenerated field"
+if($sampleData[0].psobject.Properties.name -match "TimeGenerated" -and $sampleData[0].psobject.Properties.name -ne "TimeGenerated"){
+    foreach ($row in $sampleData)
+        {
+            $tgFieldName = $($row.psobject.Properties.name -match "TimeGenerated")
+            $value = $row.$tgFieldName
+            $row | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $value
+            $row.PSObject.Properties.Remove($tgFieldName)
+        }
 }elseif($sampleData[0].psObject.Properties.name -notcontains "TimeGenerated") {
     $constantdate = (Get-Date).addhours(-5)
     foreach($row in $sampleData)
@@ -259,7 +265,7 @@ if($targetTableName -like 'Custom-*' -and !$Test)
         $customDCR.resources += [PSCustomObject]@{
             type = "Microsoft.Insights/dataCollectionRules"
             name = $CustomDCRName
-            location = "eastus"
+            location = "$($ws.location)"
             apiVersion = "2021-09-01-preview"
             properties = [PSCustomObject]@{
                 dataCollectionEndpointId = $DCEresourceID
@@ -342,8 +348,7 @@ if ([System.Text.Encoding]::UTF8.GetByteCount($($sampleData|ConvertTo-Json)) -gt
         $return = Invoke-RestMethod -Uri $uri -Method "Post" -Body $logData -Headers @{Authorization = "Bearer $($token.Token)"} -ContentType 'application/json'
     } 
     catch [System.Net.WebException], [System.Net.HttpWebRequest] {
-        $return = $_.Exception.Response
-        Write-Error $return
+        Write-Error $_.Exception
         throw "Some errors are occurred"
     }
     catch {
