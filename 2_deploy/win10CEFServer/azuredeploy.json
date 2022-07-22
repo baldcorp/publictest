@@ -138,7 +138,7 @@
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
-                    "uri": "[uri(variables('artifactslogingestAsAService'), 'deploytoasuretest/ingestmainfusion.json')]",
+                    "uri": "[uri(variables('artifactslogingestAsAService'), '2_deploy/logingestionAsService/ingestmainfusion.json')]",
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
