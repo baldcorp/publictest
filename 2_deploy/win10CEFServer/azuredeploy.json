@@ -196,7 +196,7 @@
                         "value": "Standard_B2s"
                     },
                     "newOrExistingVnet": {
-                        "value": "existing"
+                        "value": "new"
                     },
                     "newOrExistingSubnet": {
                         "value": "new"
