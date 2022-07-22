@@ -172,7 +172,6 @@
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2020-06-01",
             "dependsOn": [
-                "deployCEFVM"
             ],
             "properties": {
                 "mode": "Incremental",
@@ -199,14 +198,8 @@
                     "newOrExistingVnet": {
                         "value": "existing"
                     },
-                    "virtualNetworkName": {
-                        "value": "[reference('deployCEFVM').outputs.virtualNetworkName.value]"
-                    },
                     "newOrExistingSubnet": {
-                        "value": "existing"
-                    },
-                    "subnetName": {
-                        "value": "[reference('deployCEFVM').outputs.subnetId.value]"
+                        "value": "new"
                     },
                     "remoteAccessMode": {
                         "value": "AzureBastionHost"
