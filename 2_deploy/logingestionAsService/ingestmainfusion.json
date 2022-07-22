@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.5.6.12127",
-      "templateHash": "14582315570438735149"
+      "templateHash": "9801376785234803040"
     }
   },
   "parameters": {
@@ -47,10 +47,10 @@
     }
   },
   "variables": {
-    "automationAccountNameVar": "[format('{0}{1}', parameters('automationAccountName'), uniqueString(resourceGroup().id, parameters('guidValue')))]",
     "functionAppNameVar": "[format('{0}{1}', parameters('functionAppName'), uniqueString(resourceGroup().id, parameters('guidValue')))]",
     "workbookNameVar": "[format('{0}{1}', parameters('workbookName'), uniqueString(resourceGroup().id, parameters('guidValue')))]",
     "dataCollectionEndpointNameVar": "[format('{0}{1}', parameters('dataCollectionEndpointName'), uniqueString(resourceGroup().id, parameters('guidValue')))]",
+    "automationAccountNameVar": "[format('{0}{1}', parameters('automationAccountName'), uniqueString(resourceGroup().id, parameters('guidValue')))]",
     "LAWRG": "[if(empty(parameters('workspaceId')), resourceGroup().name, split(parameters('workspaceId'), '/')[4])]",
     "LAWNAME": "[if(empty(parameters('workspaceId')), parameters('workspaceName'), last(split(parameters('workspaceId'), '/')))]"
   },
@@ -69,7 +69,7 @@
             "value": "[parameters('location')]"
           },
           "automationAccountName": {
-            "value": "[parameters('automationAccountName')]"
+            "value": "[variables('automationAccountNameVar')]"
           }
         },
         "template": {
@@ -140,7 +140,7 @@
         "mode": "Incremental",
         "parameters": {
           "automationAccountName": {
-            "value": "[parameters('automationAccountName')]"
+            "value": "[variables('automationAccountNameVar')]"
           },
           "automationAccountRG": {
             "value": "[resourceGroup().name]"
@@ -209,7 +209,7 @@
             "value": "[parameters('location')]"
           },
           "automationAccountName": {
-            "value": "[parameters('automationAccountName')]"
+            "value": "[variables('automationAccountNameVar')]"
           }
         },
         "template": {
@@ -347,7 +347,7 @@
             "value": "[parameters('location')]"
           },
           "functionAppName": {
-            "value": "[parameters('functionAppName')]"
+            "value": "[variables('functionAppNameVar')]"
           },
           "guidValue": {
             "value": "[parameters('guidValue')]"
@@ -569,7 +569,7 @@
             "value": "[parameters('location')]"
           },
           "displayName": {
-            "value": "[parameters('workbookName')]"
+            "value": "[variables('workbookNameVar')]"
           },
           "workspaceName": {
             "value": "[variables('LAWNAME')]"
@@ -581,10 +581,10 @@
             "value": "[resourceGroup().name]"
           },
           "automationAccountName": {
-            "value": "[parameters('automationAccountName')]"
+            "value": "[variables('automationAccountNameVar')]"
           },
           "functionName": {
-            "value": "[parameters('functionAppName')]"
+            "value": "[variables('functionAppNameVar')]"
           },
           "functionRG": {
             "value": "[resourceGroup().name]"
@@ -668,7 +668,7 @@
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'lawexist')).outputs.LAWlocation.value]"
           },
           "dataCollectionEndpointName": {
-            "value": "[parameters('dataCollectionEndpointName')]"
+            "value": "[variables('dataCollectionEndpointNameVar')]"
           }
         },
         "template": {
@@ -734,7 +734,7 @@
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'lawexist')).outputs.existingLAWid.value]"
           },
           "endpointResourceName": {
-            "value": "[parameters('dataCollectionEndpointName')]"
+            "value": "[variables('dataCollectionEndpointNameVar')]"
           },
           "outTable": {
             "value": "Microsoft-CommonSecurityLog"
@@ -1437,7 +1437,7 @@
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'lawexist')).outputs.existingLAWid.value]"
           },
           "endpointResourceName": {
-            "value": "[parameters('dataCollectionEndpointName')]"
+            "value": "[variables('dataCollectionEndpointNameVar')]"
           },
           "outTable": {
             "value": "Microsoft-Syslog"
@@ -1588,7 +1588,7 @@
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'lawexist')).outputs.existingLAWid.value]"
           },
           "endpointResourceName": {
-            "value": "[parameters('dataCollectionEndpointName')]"
+            "value": "[variables('dataCollectionEndpointNameVar')]"
           },
           "outTable": {
             "value": "Microsoft-SecurityEvent"
@@ -2559,7 +2559,7 @@
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'lawexist')).outputs.existingLAWid.value]"
           },
           "endpointResourceName": {
-            "value": "[parameters('dataCollectionEndpointName')]"
+            "value": "[variables('dataCollectionEndpointNameVar')]"
           },
           "outTable": {
             "value": "Microsoft-WindowsEvent"
@@ -2718,7 +2718,7 @@
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'lawexist')).outputs.existingLAWid.value]"
           },
           "endpointResourceName": {
-            "value": "[parameters('dataCollectionEndpointName')]"
+            "value": "[variables('dataCollectionEndpointNameVar')]"
           },
           "outTable": {
             "value": "Microsoft-ASimDnsActivityLogs"
@@ -3092,13 +3092,13 @@
         "mode": "Incremental",
         "parameters": {
           "automationAccountName": {
-            "value": "[parameters('automationAccountName')]"
+            "value": "[variables('automationAccountNameVar')]"
           },
           "accountvariables": {
             "value": [
               {
                 "name": "AAName",
-                "value": "[parameters('automationAccountName')]"
+                "value": "[variables('automationAccountNameVar')]"
               },
               {
                 "name": "AARG",
@@ -3118,7 +3118,7 @@
               },
               {
                 "name": "DCEName",
-                "value": "[parameters('dataCollectionEndpointName')]"
+                "value": "[variables('dataCollectionEndpointNameVar')]"
               },
               {
                 "name": "DCRE_RG",
