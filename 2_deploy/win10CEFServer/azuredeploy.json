@@ -204,6 +204,27 @@
                     "remoteAccessMode": {
                         "value": "AzureBastionHost"
                     },
+                    "virtualNetworkName":{
+                        "value": "vnet-win"
+                    },
+                    "virtualNetworkAddressRange":{
+                        "value": "192.168.0.0/16"
+                    },
+                    "subnetName":{
+                        "value": "snet-win"
+                    },
+                    "subnetRange":{
+                        "value": "192.168.2.0/24"
+                    },
+                    "newOrExistingBastion":{
+                        "value": "new"
+                    },
+                    "azureBastionHostName":{
+                        "value": "vnet-win-bastion"
+                    },
+                    "azureBastionSubnetRange":{
+                        "value": "192.168.3.0/26"
+                    },
                     "location": {
                         "value": "[parameters('location')]"
                     }
