@@ -65,7 +65,7 @@
         }
     },
     "variables": {
-        "artifactsBlacksmith": "https://raw.githubusercontent.com/baldcorp/publictest/main/",
+        "artifactsBlacksmith": "https://raw.githubusercontent.com/OTRF/Blacksmith/master/",
         "artifactsMSSentinel2Go": "https://raw.githubusercontent.com/OTRF/Microsoft-Sentinel2Go/master/",
         "artifactslogingestAsAService": "https://raw.githubusercontent.com/baldcorp/publictest/main/",
         "dataConnectors": [
@@ -176,7 +176,7 @@
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
-                    "uri": "[uri(variables('artifactsBlacksmith'), '2_deploy/win10CEFServer/azuredeploy.json')]",
+                    "uri": "[uri(variables('artifactsBlacksmith'), 'templates/azure/Win10/azuredeploy.json')]",
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
