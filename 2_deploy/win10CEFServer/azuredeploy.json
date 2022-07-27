@@ -16,13 +16,6 @@
                 "description": "Your own existing log analytics workspace ID. Leave it empty if you are deploying a new LA workspace."
             }
         },
-        "workspaceKey": {
-            "type": "string",
-            "defaultValue": "",
-            "metadata": {
-                "description": "Your own existing log analytics workspace key. Leave it empty if you are deploying a new LA workspace."
-            }
-        },
         "enableDataConnectors": {
             "type": "bool",
             "defaultValue": true,
@@ -74,7 +67,7 @@
     },
     "resources": [
         {
-            "condition": "[and(empty(parameters('workspaceId')),empty(parameters('workspaceKey')))]",
+            "condition": "[empty(parameters('workspaceId'))]",
             "name": "deployMSSentinel2Go",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2020-06-01",
