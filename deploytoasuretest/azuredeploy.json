@@ -13,7 +13,7 @@
             "type": "string",
             "defaultValue": "",
             "metadata": {
-                "description": "Your own existing log analytics workspace ID. Leave it empty if you are deploying a new LA workspace."
+                "description": "Your own existing log analytics workspace resource ID. Leave it empty if you are deploying a new LA workspace."
             }
         },
         "enableDataConnectors": {
