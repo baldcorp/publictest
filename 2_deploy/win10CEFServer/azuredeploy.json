@@ -116,7 +116,7 @@
                 },
                 "parameters": {
                     "workspaceName": {
-                        "value":  "[if(empty(parameters('workspaceId')), reference('deployMSSentinel2Go').outputs.workspaceName.value, parameters('workspaceName'))]"
+                        "value":  "[if(empty(parameters('workspaceId')), reference('deployMSSentinel2Go').outputs.workspaceName.value, last(split(parameters('workspaceId'), '/')))]"
                     },
                     "workspaceId": {
                         "value": "[if(empty(parameters('workspaceId')), reference('deployMSSentinel2Go').outputs.workspaceIdOutput.value, parameters('workspaceId'))]"
@@ -124,7 +124,8 @@
                     "dataConnectors": {
                         "value": "[variables('dataConnectors')]"
                     }
-                }
+                },
+                "resourceGroup": "[if(empty(parameters('workspaceId')), json('null'), split(parameters('workspaceId'), '/')[4])]"
             }
         },
 
