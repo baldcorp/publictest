@@ -1,4 +1,6 @@
-[
+{
+    "Name": "GitHubAuditLogPolling07_CL.json",
+    "Properties":[
   {
     "ColumnName": "TenantId",
     "ColumnType": "string"
@@ -240,3 +242,4 @@
     "ColumnType": "string"
   }
 ]
+}
