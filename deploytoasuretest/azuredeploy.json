@@ -26,7 +26,7 @@
         "adminUsername": {
             "type": "string",
             "metadata": {
-                "description": "Admin username for all virtual machines."
+                "description": "Usernames must not include reserved words, such as 'admin'."
             }
         },
         "adminPassword": {
