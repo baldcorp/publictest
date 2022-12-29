@@ -1,0 +1,21 @@
+name: test WSL
+
+on:
+  workflow_dispatch
+  
+jobs:
+  wsl_run:
+    runs-on: windows-latest
+    
+    steps:
+      - shell: pwsh
+        run: |
+          $i = 0
+          do {
+            $i++
+            $wslupd = wsl --update --web-download | Out-String
+            $wslupd
+            if ($wslupd) {
+              wsl --version
+            }  
+           } while ($i -lt 5)
