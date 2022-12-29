@@ -14,5 +14,6 @@ jobs:
             $wslupd
             if ($wslupd) {
               wsl --version
+              wsl --set-default-version 1
               wsl --install --distribution Ubuntu-20.04 --web-download --no-launch
             }  
