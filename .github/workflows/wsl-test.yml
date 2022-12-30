@@ -16,4 +16,9 @@ jobs:
               wsl --version
               wsl --set-default-version 1
               wsl --install --distribution Ubuntu-20.04 --web-download --no-launch
+              wsl --set-default Ubuntu-20.04
+              wsl -- mkdir -p /home/test
+              $wslout = wsl /bin/sh -c "sudo touch /home/test/test1.txt; sudo chmod 777 /home/test/test1.txt; echo 'hello world' >> /home/test/test1.txt; sudo cat /home/test/test1.txt"
+              wsl -- ls -la /home/test/test1.txt 
+              Write-Output "This is `$wslout output - $wslout"
             }  
